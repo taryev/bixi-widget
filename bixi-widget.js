@@ -14,7 +14,7 @@ const settings = {
     // Global
     "debug": false,
     "cache_folder_name": "bixi-widget",
-    "assets_base_url": "https://lab.deltaplane.dev/bixiwidget/assets/",
+    "assets_base_url": "https://taryev.github.io/bixi-widget/",
     "gbfs_stations_status_url": "https://gbfs.velobixi.com/gbfs/fr/station_status.json",
     "gbfs_stations_status_file": "station_status.json",
     "show_ebikes": true,
@@ -22,7 +22,7 @@ const settings = {
     // Stations
     "stations": {
         "Métro Sherbrooke": "19",
-        "ÉTS (Peel/N-D)": "77",
+        "ÉTS (Peel/N-D)": "974",
     },
 
     // UI
@@ -32,7 +32,7 @@ const settings = {
     "bike_color": Color.white(),
     "ebike_color": Color.blue(),
     "parking_color": Color.white(),
-    "icon_size": new Size(20,20),
+    "icon_size": new Size(20, 20),
     "accessory_scale_factor": 0.9,
 }
 
@@ -43,8 +43,8 @@ dateFormatter.useMediumTimeStyle()
 /** Files Manager - Cache **/
 const files = FileManager.local()
 const cachePath = files.joinPath(files.cacheDirectory(), settings.cache_folder_name)
-if(settings.debug) files.remove(cachePath)
-if(!files.isDirectory(cachePath)) files.createDirectory(cachePath)
+if (settings.debug) files.remove(cachePath)
+if (!files.isDirectory(cachePath)) files.createDirectory(cachePath)
 const isOnline = await onlineCheck()
 
 /** Assets **/
@@ -66,11 +66,11 @@ else {
 Script.complete()
 
 /** Lock Screen Widget **/
-async function createLockScreenWidget(){
+async function createLockScreenWidget() {
 
     // Widget base
     const widget = new ListWidget()
-    widget.setPadding(0,5,0,0)
+    widget.setPadding(0, 5, 0, 0)
     // Widget content
     const content = widget.addStack()
     content.layoutVertically()
@@ -81,14 +81,14 @@ async function createLockScreenWidget(){
 }
 
 /** Home Screen Widget **/
-async function createHomeScreenWidget(){
+async function createHomeScreenWidget() {
 
     // Widget base
     const widget = new ListWidget()
     widget.backgroundGradient = backgroundGradient()
     const bixiIcon = widget.addImage(assets.bixiIcon)
     bixiIcon.tintColor = Color.white()
-    bixiIcon.imageSize = new Size(45,20)
+    bixiIcon.imageSize = new Size(45, 20)
     widget.addSpacer(10)
 
     // Widget Content
@@ -101,18 +101,18 @@ async function createHomeScreenWidget(){
     const footer = widget.addStack()
 
     // Offline indicator
-    if(!isOnline){
+    if (!isOnline) {
         const offlineIcon = SFSymbol.named("antenna.radiowaves.left.and.right.slash")
         const offlineIndicator = footer.addImage(offlineIcon.image)
         offlineIndicator.tintColor = Color.gray()
-        offlineIndicator.imageSize = new Size(12,12)
+        offlineIndicator.imageSize = new Size(12, 12)
         footer.addSpacer(5)
     }
     // Update date
     const updatedAt = footer.addText("MàJ à ")
     updatedAt.font = settings.update_font
     let date = new Date()
-    if(isOnline){
+    if (isOnline) {
         saveUpdateDate()
     } else {
         date = dateFormatter.date(loadUpdateDate())
@@ -125,11 +125,11 @@ async function createHomeScreenWidget(){
 
 /** Functions **/
 // Widget data
-function addWidgetData(parentStack){
+function addWidgetData(parentStack) {
     // GBFS Data
     gbfs_data = assets.gbfs.data.stations
 
-    for(const [label, id] of Object.entries(settings.stations)){
+    for (const [label, id] of Object.entries(settings.stations)) {
         // Data
         const gbfs_station_data = gbfs_data.find(station => station.station_id === id)
         ebikes_data = gbfs_station_data.num_ebikes_available
@@ -139,7 +139,7 @@ function addWidgetData(parentStack){
         // Station infos
         const station_title = parentStack.addText(label)
         station_title.font = settings.station_font
-        if(config.runsInAccessoryWidget)
+        if (config.runsInAccessoryWidget)
             station_title.minimumScaleFactor = settings.accessory_scale_factor
         const station_data = parentStack.addStack()
 
@@ -147,7 +147,7 @@ function addWidgetData(parentStack){
         addDataItem(station_data, bikes_data, 'BIKE')
 
         // eBikes infos
-        if (settings.show_ebikes){
+        if (settings.show_ebikes) {
             addDataItem(station_data, ebikes_data, 'EBIKE')
         }
 
@@ -157,11 +157,11 @@ function addWidgetData(parentStack){
 }
 
 // Item data
-function addDataItem(parentStack, data, type){
+function addDataItem(parentStack, data, type) {
     const itemCount = parentStack.addText(data.toString())
     itemCount.font = settings.figures_font
     let iconType, iconTint = undefined
-    switch (type){
+    switch (type) {
         case 'BIKE':
             iconType = assets.bikeIcon
             iconTint = settings.bike_color
@@ -184,7 +184,7 @@ function addDataItem(parentStack, data, type){
 // Widget Background
 function backgroundGradient() {
     const gradient = new LinearGradient()
-    gradient.locations = [0,1]
+    gradient.locations = [0, 1]
     gradient.colors = [
         new Color("141414"),
         new Color("13233F")
@@ -193,25 +193,25 @@ function backgroundGradient() {
 }
 
 // Online Check
-async function onlineCheck(){
+async function onlineCheck() {
     try {
         await new Request(settings.assets_base_url + "ping.txt").load()
         console.log('Device is online')
         return true
-    } catch(e) {
+    } catch (e) {
         console.log("Device is offline")
         return false
     }
 }
 
 // Cache check
-function isCached(fileName){
+function isCached(fileName) {
     const filePath = files.joinPath(cachePath, fileName)
     return files.fileExists(filePath)
 }
 
 // Images loading and caching
-function cacheImage(imageName, imageFile){
+function cacheImage(imageName, imageFile) {
     const imagePath = files.joinPath(cachePath, imageName)
     return files.writeImage(imagePath, imageFile)
 }
@@ -219,11 +219,11 @@ async function loadOnlineImage(imageUrl) {
     const req = new Request(imageUrl)
     return await req.loadImage()
 }
-function loadCachedImage(imageFile){
+function loadCachedImage(imageFile) {
     return files.readImage(files.joinPath(cachePath, imageFile))
 }
-async function loadIcon(iconFile){
-    if(!isCached(iconFile)){
+async function loadIcon(iconFile) {
+    if (!isCached(iconFile)) {
         const icon = await loadOnlineImage(settings.assets_base_url + iconFile)
         cacheImage(iconFile, icon)
         return icon
@@ -233,33 +233,33 @@ async function loadIcon(iconFile){
 }
 
 // Last update
-function saveUpdateDate(){
+function saveUpdateDate() {
     const updateDate = new Date()
     const updateDatePath = files.joinPath(cachePath, "lastUpdate.txt")
     const stringDate = dateFormatter.string(updateDate)
     files.writeString(updateDatePath, stringDate)
 }
-function loadUpdateDate(){
+function loadUpdateDate() {
     const updateDatePath = files.joinPath(cachePath, "lastUpdate.txt")
     return files.readString(updateDatePath)
 }
 
 // Gbfs loading and caching
-function cacheGbfs(gbfsFile){
+function cacheGbfs(gbfsFile) {
     return files.writeString(getGbfsPath(), gbfsFile)
 }
-async function loadOnlineGbfs(){
+async function loadOnlineGbfs() {
     const req = new Request(settings.gbfs_stations_status_url)
-    const json =  await req.loadJSON()
+    const json = await req.loadJSON()
     return JSON.stringify(json)
 }
-function loadCachedGbfs(){
+function loadCachedGbfs() {
     let gbfsData = files.readString(getGbfsPath())
     gbfsData = JSON.parse(gbfsData)
     return gbfsData
 }
-async function loadGbfs(){
-    if(isOnline){
+async function loadGbfs() {
+    if (isOnline) {
         const gbfsFile = await loadOnlineGbfs()
         cacheGbfs(gbfsFile)
         return JSON.parse(gbfsFile)
@@ -267,7 +267,7 @@ async function loadGbfs(){
         return loadCachedGbfs()
     }
 }
-function getGbfsPath(){
+function getGbfsPath() {
     return files.joinPath(cachePath, settings.gbfs_stations_status_file)
 }
 
@@ -280,5 +280,5 @@ async function loadAssets() {
     const parkingIcon = await loadIcon("parking.png")
     const gbfsData = await loadGbfs()
 
-    return {"bixiIcon": bixiIcon, "bikeIcon" : bikeIcon, "ebikeIcon" : ebikeIcon, "parkingIcon": parkingIcon, "gbfs": gbfsData}
+    return { "bixiIcon": bixiIcon, "bikeIcon": bikeIcon, "ebikeIcon": ebikeIcon, "parkingIcon": parkingIcon, "gbfs": gbfsData }
 }
