@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stations BIXI Montréal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body class="bg-slate-50 text-slate-900">
+    <header class="mx-auto max-w-7xl p-6 md:px-8">
+        <h1 class="text-3xl font-bold">
+            Stations BIXI Montréal
+        </h1>
+        <p>Le nombre affiché correspond à l'identifiant de la station à renseigner dans <a
+                class="underline text-indigo-600" href="https://github.com/taryev/bixi-widget"
+                target="_blank">bixi-widget</a>.</p>
+        <p id="updatedAt" class="text-slate-600 text-sm">Mise à jour le </p>
+        <p class="text-sm text-slate-600">Source : <a href="https://bixi.com/fr/donnees-ouvertes/"
+                class="underline text-indigo-600 after:content-['_↗']">BIXI données ouvertes</a></p>
+    </header>
+
+    <main class="mx-auto max-w-7xl p-6 md:px-8 pt-0.5">
+        <div id="map" class="w-full h-[650px] rounded-lg shadow border border-slate-200 z-0"></div>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const gbfs_status = "https://gbfs.velobixi.com/gbfs/fr/station_status.json";
+        const gbfs_information = "https://gbfs.velobixi.com/gbfs/fr/station_information.json";
+
+        const map = L.map('map').setView([45.5088, -73.5878], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = () => {
+            const div = L.DomUtil.create('div', 'bg-white p-2.5 text-xs leading-normal rounded shadow border border-slate-200');
+            div.innerHTML = `
+                <strong class="block mb-1">Stations BIXI</strong>
+                <div class="mt-1 flex items-center gap-2"><span class="size-3 rounded-full bg-blue-600"></span> Station de recharge</div>
+                <div class="mt-1 flex items-center gap-2"><span class="size-3 rounded-full bg-gray-600"></span> Station classique</div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        Promise.all([
+            fetch(gbfs_status),
+            fetch(gbfs_information)
+        ]).then(async ([statusResponse, informationResponse]) => {
+            if (!statusResponse.ok || !informationResponse.ok) {
+                throw new Error("Erreur lors de la récupération des fichiers JSON");
+            }
+
+            const status_data = await statusResponse.json();
+            const information_data = await informationResponse.json();
+
+            const updatedAt = document.getElementById("updatedAt");
+            updatedAt.textContent += new Date(status_data.last_updated * 1000).toLocaleString('fr-CA');
+
+            const infoById = new Map(
+                information_data.data.stations.map(info => [info.station_id, info])
+            );
+
+            status_data.data.stations.forEach(station => {
+                const info = infoById.get(station.station_id);
+                if (!info) return;
+
+                const isCharging = Boolean(info.is_charging);
+                const label = String(station.station_id);
+                const width = Math.max(26, label.length * 8 + 12);
+                const regularBikes = Math.max(0, station.num_bikes_available - station.num_ebikes_available);
+
+                const badgeClasses = [
+                    'flex items-center justify-center h-6 rounded-full',
+                    'text-xs font-bold text-white shadow-md whitespace-nowrap',
+                    isCharging ? 'bg-blue-600' : 'bg-gray-600'
+                ].join(' ');
+
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div class="${badgeClasses}" style="width:${width}px;">${label}</div>`,
+                    iconSize: [width, 24],
+                    iconAnchor: [width / 2, 12]
+                });
+
+                L.marker([info.lat, info.lon], { icon })
+                    .bindPopup(`
+                        <div class="text-xs leading-relaxed text-slate-700 min-w-[180px]">
+                            <div class="font-bold text-slate-900">${info.name}</div>
+                            <div class="text-slate-500 mb-2">ID : <span class="font-mono font-semibold text-slate-700">${station.station_id}</span> · ${isCharging ? 'Recharge' : 'Classique'}</div>
+                            <div class="flex items-center justify-between gap-3 pt-1.5 border-t border-slate-100">
+                                <div class="flex items-center gap-1" title="Vélos classiques">
+                                    <span class="inline-block size-4 bg-slate-700 [mask:url(bike.png)_no-repeat_center/contain]" aria-label="Vélos classiques"></span>
+                                    <span class="font-bold text-slate-900">${regularBikes}</span>
+                                </div>
+                                <div class="flex items-center gap-1" title="Vélos électriques">
+                                    <span class="inline-block size-4 bg-blue-600 [mask:url(ebike.png)_no-repeat_center/contain]" aria-label="Vélos électriques"></span>
+                                    <span class="font-bold text-slate-900">${station.num_ebikes_available}</span>
+                                </div>
+                                <div class="flex items-center gap-1" title="Points d'ancrage libres">
+                                    <span class="inline-block size-4 bg-slate-500 [mask:url(parking.png)_no-repeat_center/contain]" aria-label="Points d'ancrage"></span>
+                                    <span class="font-bold text-slate-900">${station.num_docks_available}/${info.capacity}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `)
+                    .addTo(map);
+            });
+        }).catch(err => {
+            console.error(err);
+            document.getElementById("updatedAt").textContent = "Impossible de charger les données BIXI.";
+        });
+    </script>
+</body>
+
+</html>
